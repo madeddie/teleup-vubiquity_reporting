@@ -266,6 +266,12 @@ if __name__ == '__main__':
             next(hdl for hdl in logger.handlers if hdl.name == 'console')
         )
 
+    # If run with dry_run flag, do not log to file
+    if args.dry_run:
+        logger.removeHandler(
+            next(hdl for hdl in logger.handlers if hdl.name == 'file')
+        )
+
     end_timestamp = timegm((date.today() - timedelta(1)).timetuple())
 
     data = get_purchases(endPeriod=end_timestamp)
