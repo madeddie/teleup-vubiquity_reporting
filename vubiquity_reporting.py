@@ -60,7 +60,7 @@ def parse_args(argv=None):
                         help='Full location of config file to use')
     parser.add_argument('--dry_run', action='store_true',
                         help='Dry run; does not make any actual changes')
-    parser.add_argument('--loglevel', default='WARNING',
+    parser.add_argument('--loglevel', default='INFO',
                         choices=['DEBUG', 'INFO', 'WARNING',
                                  'ERROR', 'CRITICAL'],
                         help='Set log level')
@@ -248,7 +248,7 @@ if __name__ == '__main__':
                         'level': loglevel},
             'file': {'class': 'logging.FileHandler',
                      'formatter': 'brief',
-                     'level': logging.INFO,
+                     'level': logging.WARNING,
                      'filename': os.path.join(sys.path[0], 'reporting.log')}
         },
         root={
