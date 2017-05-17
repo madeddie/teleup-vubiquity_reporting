@@ -68,6 +68,54 @@ def parse_args(argv=None):
     return parser.parse_args(argv)
 
 
+def set_logging():
+    """Set up logging to file and console
+
+    Return logger object
+    """
+    loglevel = getattr(logging, args.loglevel)
+    if args.dry_run:
+        print('Not making any actual changes, setting loglevel to DEBUG')
+        loglevel = getattr(logging, 'DEBUG')
+
+    logging_config = dict(
+        version=1,
+        formatters={
+            'brief': {'format': '%(asctime)s - %(levelname)s - %(message)s'}
+        },
+        handlers={
+            'console': {'class': 'logging.StreamHandler',
+                        'formatter': 'brief',
+                        'level': loglevel},
+            'file': {'class': 'logging.FileHandler',
+                     'formatter': 'brief',
+                     'level': logging.WARNING,
+                     'filename': os.path.join(sys.path[0], 'reporting.log')}
+        },
+        root={
+            'handlers': ['console', 'file'],
+            'level': logging.DEBUG
+        },
+    )
+
+    logging.config.dictConfig(logging_config)
+    logger = logging.getLogger()
+
+    # If script is run non-interactive and without dry_run, remove console log
+    if not os.isatty(sys.stdout.fileno()) and not args.dry_run:
+        logger.removeHandler(
+            next(hdl for hdl in logger.handlers if hdl.name == 'console')
+        )
+
+    # If run with dry_run flag, do not log to file
+    if args.dry_run:
+        logger.removeHandler(
+            next(hdl for hdl in logger.handlers if hdl.name == 'file')
+        )
+
+    return logger
+
+
 def get_purchases(startPeriod=None, endPeriod=None, paging=True, limit=100):
     """Return list of purchases from TeleUP api vod endpoint"""
     api_endpoint = config['api_url']
@@ -137,7 +185,7 @@ def update_purchases(purchase_ids, transmitted_at, transmitted_filename):
             resp.json().get('reason')
         ))
     else:
-        logger.error('Unknown failure updatint reporting status')
+        logger.error('Unknown failure updating reporting status')
 
     return False
 
@@ -231,46 +279,7 @@ def upload_xml(xmldoc, filename):
 if __name__ == '__main__':
     args = parse_args()
     config = read_config(args.config_file)
-
-    loglevel = getattr(logging, args.loglevel)
-    if args.dry_run:
-        print('Not making any actual changes, setting loglevel to DEBUG')
-        loglevel = getattr(logging, 'DEBUG')
-
-    logging_config = dict(
-        version=1,
-        formatters={
-            'brief': {'format': '%(asctime)s - %(levelname)s - %(message)s'}
-        },
-        handlers={
-            'console': {'class': 'logging.StreamHandler',
-                        'formatter': 'brief',
-                        'level': loglevel},
-            'file': {'class': 'logging.FileHandler',
-                     'formatter': 'brief',
-                     'level': logging.WARNING,
-                     'filename': os.path.join(sys.path[0], 'reporting.log')}
-        },
-        root={
-            'handlers': ['console', 'file'],
-            'level': logging.DEBUG
-        },
-    )
-
-    logging.config.dictConfig(logging_config)
-    logger = logging.getLogger()
-
-    # If script is run non-interactive and without dry_run, remove console log
-    if not os.isatty(sys.stdout.fileno()) and not args.dry_run:
-        logger.removeHandler(
-            next(hdl for hdl in logger.handlers if hdl.name == 'console')
-        )
-
-    # If run with dry_run flag, do not log to file
-    if args.dry_run:
-        logger.removeHandler(
-            next(hdl for hdl in logger.handlers if hdl.name == 'file')
-        )
+    logger = set_logging()
 
     end_timestamp = timegm((date.today() - timedelta(1)).timetuple())
 
@@ -298,7 +307,7 @@ if __name__ == '__main__':
     filename = '{0}_{1}_{2}.xml'.format(
         config['affiliate_name'],
         config['system'],
-        now_utc.isoformat()
+        now_utc.isoformat().replace(':', '')
     )
 
     logger.debug('output XML:\n' + xmldoc)
