@@ -6,13 +6,18 @@ import hashlib
 import logging
 import os
 import sys
-import xml.dom.minidom as MD
-import xml.etree.cElementTree as ET
 from calendar import timegm
 from datetime import date, datetime, timedelta
 from ftplib import FTP
 from logging.config import dictConfig
-from StringIO import StringIO
+from xml.dom import minidom
+from xml.etree import cElementTree
+
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
+
 try:
     from urlparse import urljoin, urlsplit
 except ImportError:
@@ -198,16 +203,18 @@ def return_xml(data):
         'title', 'transaction_price', 'transaction_date', 'system',
         'postal_code', 'mac_address', 'device'
     )
-    root = ET.Element('BILLING_DATA')
+    root = cElementTree.Element('BILLING_DATA')
     for rec in data:
-        doc = ET.SubElement(root, 'PURCHASE')
+        doc = cElementTree.SubElement(root, 'PURCHASE')
         for k in valid_records:
+            tag = k.upper()
+            val = rec[k]
             if k == 'transaction_price':
-                ET.SubElement(doc, k.upper()).text = '{:.2f}'.format(rec[k])
+                cElementTree.SubElement(doc, tag).text = '{:.2f}'.format(val)
             else:
-                ET.SubElement(doc, k.upper()).text = '{}'.format(rec[k])
+                cElementTree.SubElement(doc, tag).text = '{}'.format(val)
 
-    xmldoc = MD.parseString(ET.tostring(root)).toprettyxml(
+    xmldoc = minidom.parseString(cElementTree.tostring(root)).toprettyxml(
         indent='  ',
         encoding='utf-8'
     )
