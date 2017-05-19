@@ -14,9 +14,9 @@ from ftplib import FTP
 from logging.config import dictConfig
 from StringIO import StringIO
 try:
-    from urlparse import urljoin
+    from urlparse import urljoin, urlsplit
 except ImportError:
-    from urllib.parse import urljoin
+    from urllib.parse import urljoin, urlsplit
 
 import requests
 
@@ -35,9 +35,7 @@ def read_config(config_file=None):
     mandatory = [
         'api_url',
         'api_key',
-        'ftp_server',
-        'ftp_user',
-        'ftp_pass',
+        'destination',
         'affiliate_name',
         'system'
     ]
@@ -193,23 +191,21 @@ def update_purchases(purchase_ids, transmitted_at, transmitted_filename):
 def return_xml(data):
     """Format the input JSON as XML and return doc as string"""
 
-    # These fields will be used from the JSON objects
+    # These fields will be used from the JSON objects, this is also the order
+    # of the XML tags in the final document
     valid_records = (
-        'asset_id', 'billing_id', 'customer_account_id', 'device', 'lease_id',
-        'mac_address', 'postal_code', 'studio', 'system', 'title',
-        'transaction_date', 'transaction_price'
+        'lease_id', 'customer_account_id', 'asset_id', 'billing_id', 'studio',
+        'title', 'transaction_price', 'transaction_date', 'system',
+        'postal_code', 'mac_address', 'device'
     )
-
     root = ET.Element('BILLING_DATA')
     for rec in data:
         doc = ET.SubElement(root, 'PURCHASE')
-        for k, v in rec.items():
-            if k not in valid_records:
-                continue
+        for k in valid_records:
             if k == 'transaction_price':
-                ET.SubElement(doc, k.upper()).text = '{:.2f}'.format(v)
+                ET.SubElement(doc, k.upper()).text = '{:.2f}'.format(rec[k])
             else:
-                ET.SubElement(doc, k.upper()).text = '{}'.format(v)
+                ET.SubElement(doc, k.upper()).text = '{}'.format(rec[k])
 
     xmldoc = MD.parseString(ET.tostring(root)).toprettyxml(
         indent='  ',
@@ -256,7 +252,10 @@ def upload_xml(xmldoc, filename):
     and after. If hash compare fails, file is deleted and function returns
     False.
     """
-    ftp = FTP(config['ftp_server'], config['ftp_user'], config['ftp_pass'])
+    ftp_conf = urlsplit(config['destination'])
+    ftp = FTP(ftp_conf.hostname, ftp_conf.username, ftp_conf.password)
+    if ftp_conf.path:
+        ftp.cwd(ftp_conf.path)
 
     outfile = StringIO(xmldoc)
     outfile_digest = hashlib.md5(outfile.read()).hexdigest()
@@ -303,7 +302,7 @@ if __name__ == '__main__':
     now_utc = datetime.utcnow().replace(microsecond=0)
     now_timestamp = timegm(now_utc.timetuple())
 
-    xmldoc = return_xml(data)
+    xmldoc = return_xml(good_data)
     filename = '{0}_{1}_{2}.xml'.format(
         config['affiliate_name'],
         config['system'],
