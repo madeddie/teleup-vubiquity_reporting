@@ -1,2 +1,6 @@
-requests==2.13.0 --hash=sha256:1a720e8862a41aa22e339373b526f508ef0c8988baf48b84d3fc891a8e237efb
-
+-i https://pypi.python.org/simple
+certifi==2018.10.15
+chardet==3.0.4
+idna==2.7
+requests==2.20.0
+urllib3==1.24
